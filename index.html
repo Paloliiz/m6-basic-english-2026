@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Mastery Mission | Unit 1</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #0f172a; --panel: #1e293b; --primary: #3b82f6; --text: #f8fafc; }
+        body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); min-height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0; }
+        .app { width: 800px; background: var(--panel); border-radius: 20px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .scene { display: none; flex-direction: column; align-items: center; }
+        .scene.active { display: flex; }
+        .btn-primary { background: var(--primary); color: white; border: none; padding: 15px 40px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;}
+        .tip-box { background: rgba(59, 130, 246, 0.1); border: 1px solid var(--primary); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; width: 100%; display:none; }
+        .choice-btn { background: #334155; border: none; padding: 15px; border-radius: 8px; color: white; width: 100%; margin-bottom: 10px; cursor: pointer; text-align: left; }
+        .choice-btn:hover { background: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div id="login-scene" class="scene active">
+        <h1>MASTERY MISSION</h1>
+        <input type="text" id="idInput" placeholder="รหัสนักเรียน" style="padding:15px; width:100%; border-radius:8px; margin-bottom:10px;">
+        <button class="btn-primary" onclick="initMission()">เข้าสู่ภารกิจ</button>
+    </div>
+
+    <div id="quiz-scene" class="scene">
+        <div id="tipArea" class="tip-box"></div>
+        <h2 id="qText">Loading...</h2>
+        <div id="choicesArea" style="width:100%;"></div>
+    </div>
+</div>
+
+<script>
+    // ห้ามแก้บรรทัดนี้! ลิงก์ที่ครูได้มา
+    const APP_URL = "https://script.google.com/macros/s/AKfycby0c2A_cyEX04WpbLduvDCZQQdVVz7dYIDoOpV02EeG99cpTp2jwyb0v3SGu4AWO4A9hQ/exec";
+    let questions = [];
+    let currentQ = 0, studentID = "";
+
+    async function initMission() {
+        studentID = document.getElementById('idInput').value;
+        const res = await fetch(APP_URL);
+        questions = await res.json();
+        document.getElementById('login-scene').classList.remove('active');
+        document.getElementById('quiz-scene').classList.add('active');
+        render();
+    }
+
+    function render() {
+        const q = questions[currentQ];
+        document.getElementById('qText').textContent = q.Question;
+        
+        // ระบบ Mastery Tip ตามที่วางแผน
+        const tipBox = document.getElementById('tipArea');
+        if(q.Tip_Style === 'Integrated') {
+            tipBox.style.display = 'block';
+            tipBox.textContent = q.Mastery_Tip;
+        } else {
+            tipBox.style.display = 'none'; // หรือทำปุ่ม "ขอคำใบ้" ตรงนี้ได้ครับ
+        }
+
+        const area = document.getElementById('choicesArea'); area.innerHTML = "";
+        [q.Choice_A, q.Choice_B, q.Choice_C].forEach((c, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn'; btn.textContent = c;
+            btn.onclick = () => submitAnswer(i === (q.Correct_Ans === 'A' ? 0 : q.Correct_Ans === 'B' ? 1 : 2), q.Q_ID);
+            area.appendChild(btn);
+        });
+    }
+
+    async function submitAnswer(isCorrect, qID) {
+        // ส่งผลสอบไปที่ Google Sheet
+        await fetch(APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ studentID, qID, isCorrect })
+        });
+        currentQ++;
+        if(currentQ < questions.length) render();
+        else alert("Mission Complete!");
+    }
+</script>
+</body>
+</html>
